@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>推しスケジュール通知</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>推しスケジュール</h1>
+
+    <div class="box">
+        {{ schedule }}
+    </div>
+
+    <form action="/notify" method="post">
+        <button type="submit">LINEに通知する</button>
+    </form>
+</body>
+</html>
