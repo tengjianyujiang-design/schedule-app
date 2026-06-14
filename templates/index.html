@@ -6,6 +6,12 @@
     <title>スケジュール通知アプリ</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
+        /* 画面全体の基本設定 */
+        body { margin: 0; padding: 0; font-family: sans-serif; background: #f8f9fa; }
+        
+        /* コンテンツエリア（カードやボタン）の幅制限 */
+        .main-container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        
         .tab-container { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
         .tab-btn { padding: 10px 20px; font-size: 16px; cursor: pointer; border: 1px solid #ccc; background: #f0f0f0; border-radius: 5px; }
         .tab-btn.active { background: #333; color: #fff; border-color: #333; font-weight: bold; }
@@ -18,15 +24,6 @@
         .notify-section { margin-top: 30px; padding: 20px; background: #f9f9f9; border-radius: 8px; text-align: center; }
         .btn-notify { padding: 12px 24px; font-size: 16px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; }
         
-        /* 💡 公式サイトを埋め込む枠（iframe）のスタイル設定 */
-        .site-embed {
-            width: 100%;
-            height: 600px; /* 縦幅（スクロールして見られる高さ） */
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            margin-top: 20px;
-            background: #fff;
-        }
         .embed-title {
             margin-top: 40px;
             font-size: 20px;
@@ -34,10 +31,30 @@
             padding-left: 10px;
             color: #333;
         }
+
+        /* 💡 埋め込み枠を画面の横幅いっぱい（100%）に広げる設定 */
+        .embed-wrapper {
+            width: 100vw;          /* 画面の横幅いっぱい */
+            position: relative;
+            left: 50%;
+            right: 50%;
+            margin-left: -50vw;    /* コンテナの余白を無視して画面端まで広げる裏ワザ */
+            margin-right: -50vw;
+            margin-top: 15px;
+            margin-bottom: 30px;
+        }
+
+        .site-embed {
+            width: 100%;
+            height: 700px;         /* 縦幅を少し広げて見やすくしました */
+            border: none;          /* 枠線を消してスッキリさせます */
+            display: block;
+        }
     </style>
 </head>
 <body>
-    <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+    <!-- 全体を包むメインコンテナ -->
+    <div class="main-container">
         <h1>アーティスト スケジュール一覧</h1>
 
         <!-- タブボタン -->
@@ -60,9 +77,11 @@
                 <p>フレデリックの予定はありません。</p>
             {% endif %}
 
-            <!-- 💡 フレデリック公式サイトの埋め込み -->
-            <h3 class="embed-title">公式ライブ専用ページ</h3>
-            <iframe class="site-embed" src="https://frederic-official.com"></iframe>
+            <!-- 💡 横幅いっぱいに埋め込む枠 -->
+            <h3 class="embed-title">公式サイトプレビュー</h3>
+            <div class="embed-wrapper">
+                <iframe class="site-embed" src="https://frederic-official.com"></iframe>
+            </div>
         </div>
 
         <!-- ================= Chevonのタブ ================= -->
@@ -79,9 +98,11 @@
                 <p>Chevonの予定はありません。</p>
             {% endif %}
 
-            <!-- 💡 Chevon公式サイトの埋め込み -->
-            <h3 class="embed-title">公式サイト（LIVE）</h3>
-            <iframe class="site-embed" src="https://chevon.biz"></iframe>
+            <!-- 💡 横幅いっぱいに埋め込む枠 -->
+            <h3 class="embed-title">公式サイトプレビュー</h3>
+            <div class="embed-wrapper">
+                <iframe class="site-embed" src="https://chevon.biz"></iframe>
+            </div>
         </div>
 
         <!-- 手動通知ボタン（18:00チェックのテスト用） -->
