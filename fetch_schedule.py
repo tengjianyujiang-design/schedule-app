@@ -35,9 +35,17 @@ def fetch_schedule():
     events.sort(key=lambda x: (x["date"] is None, x["date"]))
 
     # 表示用の文字列に変換
+    # 表示用の文字列に変換
     text = ""
     for ev in events:
         date_str = ev["date"].strftime("%Y-%m-%d") if ev["date"] else "日付未定"
-        text += f"{date_str}｜{ev['artist']}｜{ev['title']}｜{ev['place']}\n{ev['url']}\n\n"
+        
+        # URLの前後にしっかり改行(\n)を入れ、文字がくっつかないようにします
+        text += f"📅 {date_str}\n"
+        text += f"🎵 {ev['artist']}\n"
+        text += f"📝 {ev['title']}\n"
+        text += f"🔗 詳細URL:\n{ev['url']}\n"  # URLの直前で改行
+        text += "---------------------\n\n"    # 区切り線を入れて見やすく
 
     return text
+
