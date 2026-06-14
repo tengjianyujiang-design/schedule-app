@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 
-BASE_URL = "https://frederic-official.com/news/3?range=future_event_end_time&sort=asc"
+BASE_URL = "https://frederic-official.com/"
 
 def fetch_frederic():
     url = f"{BASE_URL}/live/"
