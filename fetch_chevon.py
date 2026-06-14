@@ -1,13 +1,14 @@
 # fetch_chevon.py
 import urllib.request
+import json
 from bs4 import BeautifulSoup
 from datetime import datetime
 import re
+import time  # 失敗時の待機時間用にインポート
 
 BASE_URL = "https://chevon.biz"
 
 def fetch_chevon():
-    # ライブ一覧ページ
     list_url = f"{BASE_URL}/live/"
     
     headers = {
@@ -16,11 +17,23 @@ def fetch_chevon():
     
     req = urllib.request.Request(list_url, headers=headers, method="GET")
     
-    try:
-        with urllib.request.urlopen(req, timeout=10) as response:
-            html = response.read().decode("utf-8")
-    except Exception as e:
-        print("Chevon公式サイトの通信エラー:", e)
+    html = None
+    # 【タイムアウト対策】最大3回まで再読み込みをチャレンジするループ
+    for attempt in range(3):
+        try:
+            # timeoutを10秒から20秒に延長
+            with urllib.request.urlopen(req, timeout=20) as response:
+                html = response.read().decode("utf-8")
+                break  # 成功したらループを抜ける
+        except Exception as e:
+            print(f"Chevon接続試行 {attempt + 1} 回目失敗: {e}")
+            if attempt < 2:
+                time.sleep(2)  # 2秒待ってから再チャレンジ
+            else:
+                print("Chevon公式サイトの通信エラー（3回すべて失敗しました）")
+                return []
+
+    if not html:
         return []
 
     soup = BeautifulSoup(html, "html.parser")
@@ -53,8 +66,8 @@ def fetch_chevon():
             continue
 
         title_content = chunk_str.replace(date_match.group(0), "").strip()
-        title_content = re.split(r"\d{4}\s*\.\s*\d{1,2}", title_content)[0].strip()
-        title_content = re.split(r"\d{4}[/\.]", title_content)[0].strip()
+        title_content = re.split(r"\d{4}\s*\.\s*\d{1,2}", title_content).strip()
+        title_content = re.split(r"\d{4}[/\.]", title_content).strip()
         title_content = re.sub(r"\s+", " ", title_content)
         
         if len(title_content) < 5 or "©" in title_content or "BIOGRAPHY" in title_content:
@@ -65,11 +78,10 @@ def fetch_chevon():
             "title": title_content,
             "date": event_date,
             "place": "公式サイトをご参照ください",
-            "url": list_url  # 一旦デフォルト
+            "url": list_url
         })
 
-    # 2. 【超重要】ページ内のすべてのaタグ（リンク）を個別にスキャンしてURLを紐付ける
-    # タップして飛べる「各公演の詳細URL」を正確に割り当てます
+    # 2. 各公演に詳細ページURLを紐付ける
     for a_tag in soup.find_all("a"):
         text = a_tag.get_text(" ", strip=True)
         href = a_tag.get("href", "")
@@ -77,23 +89,18 @@ def fetch_chevon():
         if not href:
             continue
             
-        # リンクの文字の中、またはリンクのURL自体に日付の形が含まれているかチェック
         dm = re.search(r"(\d{4})[/\.](\d{1,2})[/\.](\d{1,2})", text + href)
         if dm:
             try:
                 ev_date = datetime(int(dm.group(1)), int(dm.group(2)), int(dm.group(3)))
                 date_str = ev_date.strftime("%Y-%m-%d")
-                
-                # 正しいURLの形に整形
                 final_url = href if href.startswith("http") else BASE_URL + href
                 
-                # 先ほどテキストから分解した同じ日付の予定を探し、URLを上書きする
                 for ev in temp_events:
                     if ev["date"].strftime("%Y-%m-%d") == date_str:
                         ev["url"] = final_url
             except:
                 pass
 
-    # 日付順に並び替え
     temp_events.sort(key=lambda x: x["date"])
     return temp_events
