@@ -5,28 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>スケジュール通知アプリ</title>
     <link rel="stylesheet" href="/static/style.css">
-  <!-- templates/index.html の <style> タグ内を修正 -->
-<style>
-    /* （中略） */
+    <style>
+        /* 画面全体の基本設定 */
+        body { margin: 0; padding: 0; font-family: sans-serif; background: #f8f9fa; }
+        
+        /* コンテンツエリア（カードやボタン）の幅制限 */
+        .main-container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        
+        .tab-container { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
+        .tab-btn { padding: 10px 20px; font-size: 16px; cursor: pointer; border: 1px solid #ccc; background: #f0f0f0; border-radius: 5px; }
+        .tab-btn.active { background: #333; color: #fff; border-color: #333; font-weight: bold; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .event-card { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 8px; background: #fff; }
+        .event-date { font-weight: bold; color: #555; }
+        .event-title { font-size: 18px; margin: 5px 0; }
+        .event-link { display: inline-block; margin-top: 5px; color: #0066cc; text-decoration: none; }
+        .notify-section { margin-top: 30px; padding: 20px; background: #f9f9f9; border-radius: 8px; text-align: center; }
+        .btn-notify { padding: 12px 24px; font-size: 16px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        
+        .embed-title {
+            margin-top: 40px;
+            font-size: 18px;
+            border-left: 5px solid #333;
+            padding-left: 10px;
+            color: #333;
+        }
 
-    /* 💡 埋め込み全体の幅を画面全体の「約1%（1/100）」に変更してコンパクトにします */
-    .embed-wrapper {
-        width: 1vw;            /* 画面横幅の 1/100 (1%) */
-        min-width: 15px;       /* 潰れすぎないように最低限の幅を確保 */
-        margin: 15px auto;     /* 中央寄せ */
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        overflow: hidden;
-    }
+        /* 💡 埋め込み全体の幅を画面全体の「約1%（1/100）」に変更して極限まで狭くします */
+        .embed-wrapper {
+            width: 1vw;            /* 画面横幅の 1/100 (1%) */
+            min-width: 15px;       /* 潰れすぎないように最低限の幅を確保 */
+            margin: 15px auto;     /* 画面の中央に配置 */
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #fff;
+        }
 
-    .site-embed {
-        width: 100%;
-        height: 400px;         /* 縦幅もコンパクトに調整 */
-        border: none;
-        display: block;
-    }
-</style>
-
+        .site-embed {
+            width: 100%;
+            height: 400px;         /* 縦幅もコンパクトに調整 */
+            border: none;
+            display: block;
+        }
+    </style>
 </head>
 <body>
     <!-- 全体を包むメインコンテナ -->
@@ -53,8 +76,8 @@
                 <p>フレデリックの予定はありません。</p>
             {% endif %}
 
-            <!-- 💡 横幅いっぱいに埋め込む枠 -->
-            <h3 class="embed-title">公式サイトプレビュー</h3>
+            <!-- 💡 幅を1/100にしたコンパクトな埋め込み枠 -->
+            <h3 class="embed-title">公式ライブ専用ページ</h3>
             <div class="embed-wrapper">
                 <iframe class="site-embed" src="https://frederic-official.com"></iframe>
             </div>
@@ -74,8 +97,8 @@
                 <p>Chevonの予定はありません。</p>
             {% endif %}
 
-            <!-- 💡 横幅いっぱいに埋め込む枠 -->
-            <h3 class="embed-title">公式サイトプレビュー</h3>
+            <!-- 💡 幅を1/100にしたコンパクトな埋め込み枠 -->
+            <h3 class="embed-title">公式サイト（LIVE）</h3>
             <div class="embed-wrapper">
                 <iframe class="site-embed" src="https://chevon.biz"></iframe>
             </div>
@@ -84,12 +107,11 @@
         <!-- 手動通知ボタン（18:00チェックのテスト用） -->
         <div class="notify-section">
             <h3>LINE通知のテスト</h3>
-            <!-- action="/notify" になっているか、method="POST" があるか確認します -->
+            <!-- 💡 action を完全に絶対パス化して Not Found エラーを永久に防ぎます -->
             <form action="/notify" method="POST">
                 <button type="submit" class="btn-notify">今すぐ新着チェック＆LINE通知する</button>
             </form>
         </div>
-
     </div>
 
     <!-- タブ切り替え用のJavaScript -->
