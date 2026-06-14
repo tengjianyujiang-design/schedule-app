@@ -1,6 +1,5 @@
 # fetch_chevon.py
 import urllib.request
-import json
 from bs4 import BeautifulSoup
 from datetime import datetime
 import re
@@ -18,7 +17,7 @@ def fetch_chevon():
     req = urllib.request.Request(list_url, headers=headers, method="GET")
     
     html = None
-    # タイムアウト対策のリトライループ（最大3回）
+    # タイムアウト対策（最大3回リトライ）
     for attempt in range(3):
         try:
             with urllib.request.urlopen(req, timeout=20) as response:
@@ -29,7 +28,6 @@ def fetch_chevon():
             if attempt < 2:
                 time.sleep(2)
             else:
-                print("Chevon公式サイトの通信エラー（3回すべて失敗しました）")
                 return []
 
     if not html:
@@ -37,25 +35,39 @@ def fetch_chevon():
 
     soup = BeautifulSoup(html, "html.parser")
     
-    # 1. サイト全体の文字を取得し、日付をベースに大まかに解体
-    full_text = soup.get_text(" ", strip=True)
-    full_text = re.sub(r"LIVE\s+\d{4}.*?\d{4}", "", full_text)
-
-    split_marker = "[SPLIT]"
-    prepared_text = re.sub(r"(\d{4}[/\.]\d{1,2}[/\.]\d{1,2})", rf"{split_marker}\1", full_text)
-    chunks = prepared_text.split(split_marker)
+    # サイト全体のソースコードを文字列にする
+    html_str = str(soup)
     
-    temp_events = []
+    # 【最新ロジック】各公演のリンクタグ(<a>〜</a>)そのものを1つの塊（ブロック）として直接切り分けます
+    # これにより、ブロック内のテキスト（日付・タイトル）と個別のURLが絶対に離れ離れになりません
+    raw_chunks = html_str.split("<a")
+    
+    events = []
 
-    for chunk in chunks:
-        chunk_str = chunk.strip()
-        if not chunk_str:
+    for chunk in raw_chunks:
+        # 綺麗に解析するために擬似的なaタグを再構築
+        chunk_soup = BeautifulSoup("<a " + chunk, "html.parser")
+        a_tag = chunk_soup.find("a")
+        
+        if not a_tag:
             continue
             
-        date_match = re.match(r"(\d{4})[/\.](\d{1,2})[/\.](\d{1,2})", chunk_str)
+        text_content = a_tag.get_text(" ", strip=True)
+        href = a_tag.get("href", "")
+        
+        if not text_content or not href:
+            continue
+            
+        # ナビゲーションメニューなどの無関係なリンクを弾く
+        if any(k in href for k in ["/biography", "/discography", "/goods", "/shop", "/contact"]):
+            continue
+
+        # テキストの中から日付（2026/06/13 など）を探す
+        date_match = re.search(r"(\d{4})[/\.](\d{1,2})[/\.](\d{1,2})", text_content)
         if not date_match:
             continue
             
+        # 日付のパース
         try:
             year = int(date_match.group(1))
             month = int(date_match.group(2))
@@ -64,49 +76,37 @@ def fetch_chevon():
         except:
             continue
 
-        title_content = chunk_str.replace(date_match.group(0), "").strip()
+        # タイトルのクレンジング（日付の文字を消す）
+        display_title = text_content.replace(date_match.group(0), "").strip()
         
-        # 【修正箇所】re.splitのバグを修正。リストではなく文字列として正しく処理します
-        title_parts = re.split(r"\d{4}\s*\.\s*\d{1,2}", title_content)
-        title_content = title_parts[0].strip() if title_parts else title_content
+        # 不要な「LIVE」の年号ナビゲーションなどが混ざっていたら除去
+        display_title = re.sub(r"LIVE\s+\d{4}.*?\d{4}", "", display_title)
+        display_title = re.sub(r"\s+", " ", display_title).strip()
         
-        title_parts_2 = re.split(r"\d{4}[/\.]", title_content)
-        title_content = title_parts_2[0].strip() if title_parts_2 else title_content
-        
-        # 連続するスペースを1つに統合
-        title_content = re.sub(r"\s+", " ", title_content)
-        
-        if len(title_content) < 5 or "©" in title_content or "BIOGRAPHY" in title_content:
+        if len(display_title) < 5:
             continue
 
-        temp_events.append({
+        # 個別詳細URLの補正
+        final_url = href if href.startswith("http") else BASE_URL + href
+
+        events.append({
             "artist": "Chevon",
-            "title": title_content,
+            "title": display_title,
             "date": event_date,
             "place": "公式サイトをご参照ください",
-            "url": list_url
+            "url": final_url  # 各公演固有のURLがここに入ります
         })
 
-    # 2. 各公演に詳細ページURLを紐付ける
-    for a_tag in soup.find_all("a"):
-        text = a_tag.get_text(" ", strip=True)
-        href = a_tag.get("href", "")
-        
-        if not href:
-            continue
-            
-        dm = re.search(r"(\d{4})[/\.](\d{1,2})[/\.](\d{1,2})", text + href)
-        if dm:
-            try:
-                ev_date = datetime(int(dm.group(1)), int(dm.group(2)), int(dm.group(3)))
-                date_str = ev_date.strftime("%Y-%m-%d")
-                final_url = href if href.startswith("http") else BASE_URL + href
-                
-                for ev in temp_events:
-                    if ev["date"].strftime("%Y-%m-%d") == date_str:
-                        ev["url"] = final_url
-            except:
-                pass
+    # 同じ日付の重複を排除（最も文字数が多い詳細なタイトルを優先して残す）
+    clean_dict = {}
+    for ev in events:
+        date_str = ev["date"].strftime("%Y-%m-%d")
+        if date_str not in clean_dict:
+            clean_dict[date_str] = ev
+        else:
+            if len(ev["title"]) > len(clean_dict[date_str]["title"]):
+                clean_dict[date_str] = ev
 
-    temp_events.sort(key=lambda x: x["date"])
-    return temp_events
+    unique_events = list(clean_dict.values())
+    unique_events.sort(key=lambda x: x["date"])
+    return unique_events
