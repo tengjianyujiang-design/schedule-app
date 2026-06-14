@@ -1,19 +1,85 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>推しスケジュール通知</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スケジュール通知アプリ</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* 簡単なタブの見た目調整（お好みでstyle.cssに移動してください） */
+        .tab-container { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
+        .tab-btn { padding: 10px 20px; font-size: 16px; cursor: pointer; border: 1px solid #ccc; background: #f0f0f0; border-radius: 5px; }
+        .tab-btn.active { background: #333; color: #fff; border-color: #333; font-weight: bold; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .event-card { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 8px; background: #fff; }
+        .event-date { font-weight: bold; color: #555; }
+        .event-title { font-size: 18px; margin: 5px 0; }
+        .event-link { display: inline-block; margin-top: 5px; color: #0066cc; text-decoration: none; }
+        .notify-section { margin-top: 30px; padding: 20px; background: #f9f9f9; border-radius: 8px; text-align: center; }
+        .btn-notify { padding: 12px 24px; font-size: 16px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
 </head>
 <body>
-    <h1>推しスケジュール</h1>
+    <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+        <h1>アーティスト スケジュール一覧</h1>
 
-    <div class="box">
-        {{ schedule }}
+        <!-- タブボタン部分 -->
+        <div class="tab-container">
+            <button class="tab-btn active" onclick="switchTab('frederic')">フレデリック</button>
+            <button class="tab-btn" onclick="switchTab('chevon')">Chevon</button>
+        </div>
+
+        <!-- フレデリックのコンテンツ -->
+        <div id="frederic-tab" class="tab-content active">
+            {% if frederic_schedule %}
+                {% for ev in frederic_schedule %}
+                    <div class="event-card">
+                        <div class="event-date">📅 {{ ev.date.strftime('%Y-%m-%d') if ev.date else '日付未定' }}</div>
+                        <div class="event-title">📝 {{ ev.title }}</div>
+                        <a class="event-link" href="{{ ev.url }}" target="_blank">🔗 詳細ページを開く</a>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>フレデリックの予定はありません。</p>
+            {% endif %}
+        </div>
+
+        <!-- Chevonのコンテンツ -->
+        <div id="chevon-tab" class="tab-content">
+            {% if chevon_schedule %}
+                {% for ev in chevon_schedule %}
+                    <div class="event-card">
+                        <div class="event-date">📅 {{ ev.date.strftime('%Y-%m-%d') if ev.date else '日付未定' }}</div>
+                        <div class="event-title">📝 {{ ev.title }}</div>
+                        <a class="event-link" href="{{ ev.url }}" target="_blank">🔗 詳細ページを開く</a>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>Chevonの予定はありません。</p>
+            {% endif %}
+        </div>
+
+        <!-- 手動通知ボタン（動作確認用） -->
+        <div class="notify-section">
+            <h3>LINE通知のテスト</h3>
+            <form action="/notify" method="POST">
+                <button type="submit" class="btn-notify">今すぐ新着チェック＆LINE通知する</button>
+            </form>
+        </div>
     </div>
 
-    <form action="/notify" method="post">
-        <button type="submit">LINEに通知する</button>
-    </form>
+    <!-- タブ切り替え用のJavaScript -->
+    <script>
+        function switchTab(artist) {
+            // すべてのタブコンテンツとボタンを非アクティブにする
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            // クリックされたアーティストのタブとボタンをアクティブにする
+            document.getElementById(artist + '-tab').classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+    </script>
 </body>
 </html>
