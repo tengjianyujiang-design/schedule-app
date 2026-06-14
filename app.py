@@ -10,19 +10,13 @@ from fastapi.staticfiles import StaticFiles
 
 from send_line import send_line_message
 
-# app.py
-
 app = FastAPI()
 
-# 💡【追加】URLの末尾のスラッシュの有無を自動で合わせてくれる設定（エラー防止）
+# URLの末尾のスラッシュの有無を自動で合わせてくれる設定（エラー防止）
 app.router.redirect_slashes = True 
 
 templates = Jinja2Templates(directory="templates")
-
-
-templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
-# app.py の該当部分を書き換え
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
@@ -32,7 +26,7 @@ def index(request: Request):
     """
     all_events = fetch_schedule_list()
     
-    # アーティストごとに予定を仕分ける（それぞれ新しい順に並びます）
+    # アーティストごとに予定を仕分ける（現在に近い順に並びます）
     frederic_events = [ev for ev in all_events if ev["artist"] == "フレデリック"]
     chevon_events = [ev for ev in all_events if ev["artist"] == "Chevon"]
     
@@ -45,18 +39,83 @@ def index(request: Request):
         }
     )
 
-# --- (中略 / notify関数などはそのまま) ---
-# app.py の notify 関数の上にあるデコレーターを2行にします
-
 @app.post("/notify")
-@app.post("/notify/")  # 💡【追加】末尾スラッシュ付きのアクセスも100%受け付けるようにします
+@app.post("/notify/")  # 末尾スラッシュ付きのアクセス（404 Not Found対策）
 def notify():
     """
     毎日18:00に自動実行される通知エンドポイント。
+    新着のスケジュールがある場合のみ、現在に近い順にLINEへ通知します。
     """
-    # (これ以降の中身のコードは一切変更せず、そのままで大丈夫です)
+    # 1. 最新のスケジュールをリスト形式で取得
+    events = fetch_schedule_list() 
+    if not events:
+        print("サイトからスケジュールを取得できませんでした（または0件）")
+        return {"status": "ok", "message": "スケジュールなし"}
 
-# app.py の最下部にある関数を修正
+    # 2. Supabase から過去に通知済みの URL 一覧を取得
+    supabase_url = os.environ.get("SUPABASE_URL")
+    supabase_key = os.environ.get("SUPABASE_KEY")
+    
+    api_url = f"{supabase_url}/rest/v1/notified_events?select=url"
+    
+    req = urllib.request.Request(
+        api_url,
+        headers={
+            "apikey": supabase_key,
+            "Authorization": f"Bearer {supabase_key}",
+            "Content-Type": "application/json"
+        },
+        method="GET"
+    )
+    
+    try:
+        with urllib.request.urlopen(req) as response:
+            res_data = json.loads(response.read().decode("utf-8"))
+            notified_urls = [row["url"] for row in res_data]
+    except Exception as e:
+        print("データベースの読み込みに失敗しました。安全のため全件通知を回避します:", e)
+        return {"status": "error", "message": "DBエラー"}
+
+    # 3. まだLINEに送っていない「新着イベント」だけを抽出
+    new_events = [ev for ev in events if ev["url"] not in notified_urls]
+
+    if not new_events:
+        print("新着スケジュールはありませんでした。静かに終了します。")
+        return {"status": "ok", "message": "新着なし"}
+
+    # 4. 新着分だけのLINEメッセージを作成（現在に近い順）
+    text = "【🔥新着ライブ・メディア情報！】\n\n"
+    for ev in new_events:
+        date_str = ev["date"].strftime("%Y-%m-%d") if ev["date"] else "日付未定"
+        text += f"📅 {date_str}\n🎵 {ev['artist']}\n📝 {ev['title']}\n🔗 詳細リンク:\n{ev['url']}\n"
+        text += "---------------------\n\n"
+
+    # 5. LINEに送信
+    send_line_message(text)
+
+    # 6. 送信が成功したURLを Supabase に保存（次回から重複通知しないようにする）
+    rows = [{"url": ev["url"]} for ev in new_events]
+    post_url = f"{supabase_url}/rest/v1/notified_events"
+    
+    post_req = urllib.request.Request(
+        post_url,
+        data=json.dumps(rows).encode("utf-8"),
+        headers={
+            "apikey": supabase_key,
+            "Authorization": f"Bearer {supabase_key}",
+            "Content-Type": "application/json"
+        },
+        method="POST"
+    )
+    
+    try:
+        with urllib.request.urlopen(post_req) as response:
+            print(f"新着 {len(new_events)} 件のURLをデータベースに記録しました。")
+    except Exception as e:
+        print("データベースへの書き込みに失敗しました:", e)
+
+    return {"status": "ok", "message": "通知を送信しました"}
+
 
 def fetch_schedule_list():
     """スケジュールを『リスト（生のデータ）』の形で取得し、現在に近い順（昇順）に並び替える関数"""
@@ -74,16 +133,7 @@ def fetch_schedule_list():
     except Exception as e:
         print("Chevonの取得に失敗:", e)
     
-    # 【順番の修正】
-    # reverse=True を外し、日付が古い順（＝現在に近い順）に並び替えます
-    # 日付未定(None)のものは一番下に配置します
+    # 日付が古い順（＝現在に近い順）に並び替えます
     events.sort(key=lambda x: (x["date"] is None, x["date"]), reverse=False)
     
-    # 💡【おまけの優しさ】もし過去の予定を表示させたくない場合は、
-    # 今日以降の予定だけを絞り込むとさらに見やすくなります
-    # from datetime import datetime, date
-    # today = date.today()
-    # events = [ev for ev in events if ev["date"] is None or ev["date"].date() >= today]
-    
     return events
-
