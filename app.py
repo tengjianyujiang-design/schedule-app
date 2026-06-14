@@ -102,18 +102,31 @@ def notify():
     return {"status": "ok", "message": f"{len(new_events)}件の新着を通知しました"}
 
 
+# app.py の下部にある fetch_schedule_list を書き換え
+
 def fetch_schedule_list():
-    """スケジュールをリストの形で取得し、新しい順に並び替える関数"""
+    """スケジュールを『リスト（生のデータ）』の形で取得し、新しい順に並び替える関数"""
     from fetch_frederic import fetch_frederic
+    from fetch_chevon import fetch_chevon  # 【追加】Chevonの関数をインポート
+    
     events = []
+    
+    # フレデリックの取得
     try:
         events.extend(fetch_frederic())
     except Exception as e:
         print("フレデリックの取得に失敗:", e)
+        
+    # 【追加】Chevonの取得
+    try:
+        events.extend(fetch_chevon())
+    except Exception as e:
+        print("Chevonの取得に失敗:", e)
     
-    # 新しい順（直近の予定を一番上）に並び替える
+    # 日付があるものを優先し、日付が新しい・近い順（降順）に並び替えます
     events.sort(key=lambda x: (x["date"] is not None, x["date"]), reverse=True)
     return events
+
 
 def fetch_schedule_string():
     """トップページの表示用に、スケジュールを綺麗な文字列に変換する関数"""
