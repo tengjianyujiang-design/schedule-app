@@ -13,21 +13,20 @@ def send_line_message(message: str):
         print("エラー: LINE の設定（トークンまたはユーザーID）が足りません")
         return
 
-    # 正確なエンドポイントURL（末尾に不要な文字がないことを確認）
-    url = "https://line.me"
+    # 【重要】URLを新しく作り直し、末尾に絶対に余計なスラッシュや空白を入れない
+    url = "https://api.line.me/v2/bot/message/push"
     
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {token.strip()}"  # 前後の空白を完全に排除
+        "Authorization": f"Bearer {token.strip()}"
     }
     
-    # もしスケジュールが空だった場合の対策
     send_text = str(message).strip()
     if not send_text:
-        send_text = "本日のスケジュールはありません、または取得に失敗しました。"
+        send_text = "スケジュールデータが空です。"
 
     data = {
-        "to": user_id.strip(),  # 前後の空白を完全に排除
+        "to": user_id.strip(),
         "messages": [
             {
                 "type": "text",
@@ -37,11 +36,15 @@ def send_line_message(message: str):
     }
 
     try:
-        # 必ず json= で送信する
+        # 確実にPOSTメソッドで送信
         response = requests.post(url, headers=headers, json=data)
         
         print("LINE Bot response status:", response.status_code)
         print("LINE Bot response text:", response.text)
+        
+        # もしまた405エラーが出た場合に、実際に送ったメソッドが何かをログで確認する
+        print("実際に送信したメソッド:", response.request.method)
+        print("実際に送信したURL:", response.request.url)
         
     except requests.exceptions.RequestException as e:
         print(f"LINE送信中に通信エラーが発生しました: {e}")
