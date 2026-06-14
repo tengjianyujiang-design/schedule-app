@@ -36,77 +36,74 @@ def fetch_chevon():
     soup = BeautifulSoup(html, "html.parser")
     events = []
 
-    # 1. 巨大な1つの塊になっているaタグをすべて探す
-    a_tags = soup.find_all("a")
-    
-    for a_tag in a_tags:
-        href = a_tag.get("href", "")
-        # メニューバーなどの無関係なリンクはスキップ
-        if any(k in href for k in ["/biography", "/discography", "/goods", "/shop", "/contact"]):
+    # 【確定ロジック】aタグに依存せず、スケジュールが書かれているすべてのテキスト要素（p, div, li）をスキャン
+    elements = soup.find_all(["p", "div", "li", "span", "a"])
+
+    for el in elements:
+        # 子要素のタグを一旦無視して、その要素単体のテキストを取得
+        text_content = el.get_text(" ", strip=True)
+        if not text_content or len(text_content) < 10:
             continue
-            
-        # aタグ内の文章を改行ごとに分解する（これで各ライブが1行ずつに分かれます）
-        raw_text = a_tag.get_text("\n", strip=True)
-        lines = raw_text.split("\n")
+
+        # メニューバーなどの無関係なテキストはスキップ
+        if "BIOGRAPHY" in text_content or "DISCOGRAPHY" in text_content or "©" in text_content:
+            continue
+
+        # 「2026/06/14」や「2026.09.13」などの日付パターンを正確に検知
+        date_match = re.search(r"(\d{4})[/\.](\d{1,2})[/\.](\d{1,2})", text_content)
+        if not date_match:
+            continue
+
+        # 日付のパース
+        try:
+            year = int(date_match.group(1))
+            month = int(date_match.group(2))
+            day = int(date_match.group(3))
+            event_date = datetime(year, month, day)
+        except:
+            continue
+
+        # タイトルのクレンジング（日付の文字を消す）
+        display_title = text_content.replace(date_match.group(0), "").strip()
         
-        for line in lines:
-            line_str = line.strip()
-            if not line_str:
-                continue
-                
-            # 「2026/06/13」や「2026.06.13」のような日付を探す
-            date_match = re.search(r"(\d{4})[/\.](\d{1,2})[/\.](\d{1,2})", line_str)
-            if not date_match:
-                continue
-                
-            # 日付のパース
-            try:
-                year = int(date_match.group(1))
-                month = int(date_match.group(2))
-                day = int(date_match.group(3))
-                event_date = datetime(year, month, day)
-            except:
-                continue
-                
-            # タイトルのクレンジング（日付の文字を消す）
-            display_title = line_str.replace(date_match.group(0), "").strip()
-            # 余計な年号ナビゲーション（LIVE 2026...など）を排除
-            display_title = re.sub(r"LIVE\s+\d{4}.*?\d{4}", "", display_title)
-            display_title = re.sub(r"\s+", " ", display_title).strip()
-            
-            # あまりに短すぎる文字はゴミデータとして弾く
-            if len(display_title) < 4:
-                continue
-                
-            # 【個別URLの解決】
-            # 各公演の個別リンク（例: /live/xxxxx）がhrefにあればそれを採用し、
-            # なければ一覧ページ(list_url)を安全に割り当てます
-            if href and href != "/" and href != "/live" and href != "/live/":
+        # 過去の「LIVE 2025 2024...」などの年号ナビゲーションが混ざっていたら除去
+        display_title = re.sub(r"LIVE\s+\d{4}.*?\d{4}", "", display_title)
+        display_title = re.sub(r"\s+", " ", display_title).strip()
+
+        if len(display_title) < 5:
+            continue
+
+        # 【個別URLの解決】
+        # その要素自体、またはそのすぐ近く（子要素）にあるaタグからチケットや詳細の個別リンクを抽出
+        link_tag = el if el.name == "a" else el.find("a")
+        final_url = list_url
+        
+        if link_tag and link_tag.get("href"):
+            href = link_tag["href"]
+            if href and href != "/" and "/live" in href or "ticket" in href or "http" in href:
                 final_url = href if href.startswith("http") else BASE_URL + href
-            else:
-                final_url = list_url
 
-            events.append({
-                "artist": "Chevon",
-                "title": display_title,
-                "date": event_date,
-                "place": "公式サイトをご参照ください",
-                "url": final_url  # ここに各公演固有のリンク、または正しい一覧リンクが入ります
-            })
+        events.append({
+            "artist": "Chevon",
+            "title": display_title,
+            "date": event_date,
+            "place": "公式サイトをご参照ください",
+            "url": final_url
+        })
 
-    # 同じ日付の重複を排除（文字数が多い詳細なタイトルを優先して残す）
+    # 同じ日付の重複を排除（最も文字数（情報量）が多く、タイトルが詳細なものを優先して残す）
     clean_dict = {}
     for ev in events:
         date_str = ev["date"].strftime("%Y-%m-%d")
         if date_str not in clean_dict:
             clean_dict[date_str] = ev
         else:
+            # 「・21」のような文字切れゴミデータを完全に上書きし、フルタイトルを残す
             if len(ev["title"]) > len(clean_dict[date_str]["title"]):
                 clean_dict[date_str] = ev
 
     unique_events = list(clean_dict.values())
     
-    # 最後に日付の近い順（昇順）に並び替える
+    # 最後に日付の近い順（古い順 ＝ 上から下に未来へ流れる順番）に並び替える
     unique_events.sort(key=lambda x: x["date"])
     return unique_events
-
