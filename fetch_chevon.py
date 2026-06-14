@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 import re
 
-BASE_URL = "https://www.chevon.biz/"
+BASE_URL = "https://chevon.biz"
 
 def fetch_chevon():
     url = f"{BASE_URL}/live/"
@@ -23,80 +23,66 @@ def fetch_chevon():
         return []
 
     soup = BeautifulSoup(html, "html.parser")
+    
+    # 1. サイト全体の文字を1つの巨大な文字列として取得
+    full_text = soup.get_text(" ", strip=True)
+    
+    # 不要な過去の年やメニュー文字（LIVE 2026 2025...）などをカットするための大掃除
+    full_text = re.sub(r"LIVE\s+\d{4}.*?\d{4}", "", full_text)
+
+    # 2. 【超重要】「2026/06/13」や「2026/12/20」のような「日付」を合図に文章をバラバラに分割する
+    # 日付の直前に特殊な目印（[SPLIT]）を埋め込みます
+    split_marker = "[SPLIT]"
+    # 2026/06/14 や 2026/09/13 などのパターンを見つけて目印を打つ
+    prepared_text = re.sub(r"(\d{4}[/\.]\d{1,2}[/\.]\d{1,2})", rf"{split_marker}\1", full_text)
+    
+    # 目印を元に、1公演ずつの塊（ブロック）に分解
+    chunks = prepared_text.split(split_marker)
+    
     events = []
 
-    # 【超強力対策】サイト全体のテキストを『行単位』ではなく『文字のかたまり（段落）』として安全に走査
-    # これにより、複雑に日付が並んでいてもエラーで全消えするのを防ぎます
-    elements = soup.find_all(["p", "div", "li", "span", "a"])
-
-    for el in elements:
-        text = el.get_text(" ", strip=True)
-        if not text or len(text) < 10:
+    for chunk in chunks:
+        chunk_str = chunk.strip()
+        if not chunk_str:
             continue
-
-        # 「2026/06/13」や「2026/12/20・21」など、日付（年/月/日）が含まれる部分を優しく検知
-        date_match = re.search(r"(\d{4})[/\.](\d{1,2})[/\.](\d{1,2})", text)
+            
+        # 塊の先頭から日付を抜き出す
+        date_match = re.match(r"(\d{4})[/\.](\d{1,2})[/\.](\d{1,2})", chunk_str)
         if not date_match:
             continue
-
-        # エラーが起きても絶対に途中で処理を落とさない安全装置（try-except）
+            
+        # 日付のパース
         try:
             year = int(date_match.group(1))
             month = int(date_match.group(2))
             day = int(date_match.group(3))
             event_date = datetime(year, month, day)
         except:
-            # 万が一パースエラーになっても、現在の日付を仮置きして絶対に処理を継続させる
-            event_date = datetime.now()
-
-        # タイトルのクレンジング
-        # 日付部分と、余計なメニューバーの文字を排除
-        title = text.replace(date_match.group(0), "").strip()
-        title = re.sub(r"\s+", " ", title)  # 連続するスペースや不自然な改行を1文字のスペースに修正
-
-        # 18:00チェックのナビゲーションやフッターなど、ゴミデータを省く
-        if "©" in title or "BIOGRAPHY" in title or "SHOP" in title or "倶楽部" in title:
             continue
 
-        # リンクの補正
-        href = el.get("href", "") if el.name == "a" else (el.find("a")["href"] if el.find("a") else "")
-        link = url
-        if href:
-            link = href if href.startswith("http") else BASE_URL + href
+        # 塊（文章）から日付部分を取り除いた残りを「ツアー名・詳細」とする
+        title_content = chunk_str.replace(date_match.group(0), "").strip()
+        
+        # 別の不要な日付（連日公演の・25など）が後ろの予定と混ざるのを防ぐため、
+        # 次の日付の年（2026. 7 や 2026. 8）などが紛れ込んでいたらそこから後ろを綺麗に消去する
+        title_content = re.split(r"\d{4}\s*\.\s*\d{1,2}", title_content)[0].strip()
+        title_content = re.split(r"\d{4}[/\.]", title_content)[0].strip()
+        
+        # 連続する不要な空白スペースを1つのスペースに統合
+        title_content = re.sub(r"\s+", " ", title_content)
+        
+        # メインタイトルが短すぎるゴミデータやフッター文字は除外
+        if len(title_content) < 5 or "©" in title_content or "BIOGRAPHY" in title_content:
+            continue
 
         events.append({
             "artist": "Chevon",
-            "title": title,
+            "title": title_content,
             "date": event_date,
             "place": "公式サイトをご参照ください",
-            "url": link
-        })
-
-    # 【超重要】同じ日のデータが複数ぶつかった場合、日本武道館などの「長いちゃんとしたタイトル」を最優先で残す
-    clean_dict = {}
-    for ev in events:
-        date_str = ev["date"].strftime("%Y-%m-%d")
-        
-        # 12-20などの日付ごとに一番文字数が多くて情報が綺麗なものを残す
-        if date_str not in clean_dict:
-            clean_dict[date_str] = ev
-        else:
-            if len(ev["title"]) > len(clean_dict[date_str]["title"]):
-                clean_dict[date_str] = ev
-
-    # 綺麗なデータだけを取り出す
-    unique_events = list(clean_dict.values())
-
-    # もしプログラムが回りすぎて空っぽになってしまった場合の最終防衛ライン
-    if not unique_events:
-        print("警告: 抽出が失敗したため、バックアップデータを代入します。")
-        # サイトにアクセスできない等の最悪の状況に備え、手動で武道館等のデータを組み立てる
-        unique_events.append({
-            "artist": "Chevon",
-            "title": "Chevon ONE MAN TOUR 2026『三者山羊 -日本武道館-』 (2days公演)",
-            "date": datetime(2026, 12, 20),
-            "place": "日本武道館",
             "url": url
         })
 
-    return unique_events
+    # 日付順に並び替え
+    events.sort(key=lambda x: x["date"])
+    return events
