@@ -10,7 +10,15 @@ from fastapi.staticfiles import StaticFiles
 
 from send_line import send_line_message
 
+# app.py
+
 app = FastAPI()
+
+# 💡【追加】URLの末尾のスラッシュの有無を自動で合わせてくれる設定（エラー防止）
+app.router.redirect_slashes = True 
+
+templates = Jinja2Templates(directory="templates")
+
 
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
