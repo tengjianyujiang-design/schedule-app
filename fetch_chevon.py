@@ -34,70 +34,67 @@ def fetch_chevon():
         return []
 
     soup = BeautifulSoup(html, "html.parser")
-    
-    # サイト全体のソースコードを文字列にする
-    html_str = str(soup)
-    
-    # 【最新ロジック】各公演のリンクタグ(<a>〜</a>)そのものを1つの塊（ブロック）として直接切り分けます
-    # これにより、ブロック内のテキスト（日付・タイトル）と個別のURLが絶対に離れ離れになりません
-    raw_chunks = html_str.split("<a")
-    
     events = []
 
-    for chunk in raw_chunks:
-        # 綺麗に解析するために擬似的なaタグを再構築
-        chunk_soup = BeautifulSoup("<a " + chunk, "html.parser")
-        a_tag = chunk_soup.find("a")
-        
-        if not a_tag:
-            continue
-            
-        text_content = a_tag.get_text(" ", strip=True)
+    # 1. 巨大な1つの塊になっているaタグをすべて探す
+    a_tags = soup.find_all("a")
+    
+    for a_tag in a_tags:
         href = a_tag.get("href", "")
-        
-        if not text_content or not href:
-            continue
-            
-        # ナビゲーションメニューなどの無関係なリンクを弾く
+        # メニューバーなどの無関係なリンクはスキップ
         if any(k in href for k in ["/biography", "/discography", "/goods", "/shop", "/contact"]):
             continue
-
-        # テキストの中から日付（2026/06/13 など）を探す
-        date_match = re.search(r"(\d{4})[/\.](\d{1,2})[/\.](\d{1,2})", text_content)
-        if not date_match:
-            continue
             
-        # 日付のパース
-        try:
-            year = int(date_match.group(1))
-            month = int(date_match.group(2))
-            day = int(date_match.group(3))
-            event_date = datetime(year, month, day)
-        except:
-            continue
-
-        # タイトルのクレンジング（日付の文字を消す）
-        display_title = text_content.replace(date_match.group(0), "").strip()
+        # aタグ内の文章を改行ごとに分解する（これで各ライブが1行ずつに分かれます）
+        raw_text = a_tag.get_text("\n", strip=True)
+        lines = raw_text.split("\n")
         
-        # 不要な「LIVE」の年号ナビゲーションなどが混ざっていたら除去
-        display_title = re.sub(r"LIVE\s+\d{4}.*?\d{4}", "", display_title)
-        display_title = re.sub(r"\s+", " ", display_title).strip()
-        
-        if len(display_title) < 5:
-            continue
+        for line in lines:
+            line_str = line.strip()
+            if not line_str:
+                continue
+                
+            # 「2026/06/13」や「2026.06.13」のような日付を探す
+            date_match = re.search(r"(\d{4})[/\.](\d{1,2})[/\.](\d{1,2})", line_str)
+            if not date_match:
+                continue
+                
+            # 日付のパース
+            try:
+                year = int(date_match.group(1))
+                month = int(date_match.group(2))
+                day = int(date_match.group(3))
+                event_date = datetime(year, month, day)
+            except:
+                continue
+                
+            # タイトルのクレンジング（日付の文字を消す）
+            display_title = line_str.replace(date_match.group(0), "").strip()
+            # 余計な年号ナビゲーション（LIVE 2026...など）を排除
+            display_title = re.sub(r"LIVE\s+\d{4}.*?\d{4}", "", display_title)
+            display_title = re.sub(r"\s+", " ", display_title).strip()
+            
+            # あまりに短すぎる文字はゴミデータとして弾く
+            if len(display_title) < 4:
+                continue
+                
+            # 【個別URLの解決】
+            # 各公演の個別リンク（例: /live/xxxxx）がhrefにあればそれを採用し、
+            # なければ一覧ページ(list_url)を安全に割り当てます
+            if href and href != "/" and href != "/live" and href != "/live/":
+                final_url = href if href.startswith("http") else BASE_URL + href
+            else:
+                final_url = list_url
 
-        # 個別詳細URLの補正
-        final_url = href if href.startswith("http") else BASE_URL + href
+            events.append({
+                "artist": "Chevon",
+                "title": display_title,
+                "date": event_date,
+                "place": "公式サイトをご参照ください",
+                "url": final_url  # ここに各公演固有のリンク、または正しい一覧リンクが入ります
+            })
 
-        events.append({
-            "artist": "Chevon",
-            "title": display_title,
-            "date": event_date,
-            "place": "公式サイトをご参照ください",
-            "url": final_url  # 各公演固有のURLがここに入ります
-        })
-
-    # 同じ日付の重複を排除（最も文字数が多い詳細なタイトルを優先して残す）
+    # 同じ日付の重複を排除（文字数が多い詳細なタイトルを優先して残す）
     clean_dict = {}
     for ev in events:
         date_str = ev["date"].strftime("%Y-%m-%d")
@@ -108,5 +105,8 @@ def fetch_chevon():
                 clean_dict[date_str] = ev
 
     unique_events = list(clean_dict.values())
+    
+    # 最後に日付の近い順（昇順）に並び替える
     unique_events.sort(key=lambda x: x["date"])
     return unique_events
+
