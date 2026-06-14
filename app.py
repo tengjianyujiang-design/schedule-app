@@ -39,8 +39,10 @@ def index(request: Request):
 
 # --- (中略 / notify関数などはそのまま) ---
 
+# app.py の最下部にある関数を修正
+
 def fetch_schedule_list():
-    """スケジュールを『リスト（生のデータ）』の形で取得し、新しい順に並び替える関数"""
+    """スケジュールを『リスト（生のデータ）』の形で取得し、現在に近い順（昇順）に並び替える関数"""
     from fetch_frederic import fetch_frederic
     from fetch_chevon import fetch_chevon
     
@@ -55,6 +57,16 @@ def fetch_schedule_list():
     except Exception as e:
         print("Chevonの取得に失敗:", e)
     
-    # 日付が新しい・近い順（降順）に並び替え
-    events.sort(key=lambda x: (x["date"] is not None, x["date"]), reverse=True)
+    # 【順番の修正】
+    # reverse=True を外し、日付が古い順（＝現在に近い順）に並び替えます
+    # 日付未定(None)のものは一番下に配置します
+    events.sort(key=lambda x: (x["date"] is None, x["date"]), reverse=False)
+    
+    # 💡【おまけの優しさ】もし過去の予定を表示させたくない場合は、
+    # 今日以降の予定だけを絞り込むとさらに見やすくなります
+    # from datetime import datetime, date
+    # today = date.today()
+    # events = [ev for ev in events if ev["date"] is None or ev["date"].date() >= today]
+    
     return events
+
