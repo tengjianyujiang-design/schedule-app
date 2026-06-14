@@ -4,7 +4,7 @@ import json
 from bs4 import BeautifulSoup
 from datetime import datetime
 import re
-import time  # 失敗時の待機時間用にインポート
+import time
 
 BASE_URL = "https://chevon.biz"
 
@@ -18,17 +18,16 @@ def fetch_chevon():
     req = urllib.request.Request(list_url, headers=headers, method="GET")
     
     html = None
-    # 【タイムアウト対策】最大3回まで再読み込みをチャレンジするループ
+    # タイムアウト対策のリトライループ（最大3回）
     for attempt in range(3):
         try:
-            # timeoutを10秒から20秒に延長
             with urllib.request.urlopen(req, timeout=20) as response:
                 html = response.read().decode("utf-8")
-                break  # 成功したらループを抜ける
+                break
         except Exception as e:
             print(f"Chevon接続試行 {attempt + 1} 回目失敗: {e}")
             if attempt < 2:
-                time.sleep(2)  # 2秒待ってから再チャレンジ
+                time.sleep(2)
             else:
                 print("Chevon公式サイトの通信エラー（3回すべて失敗しました）")
                 return []
@@ -66,8 +65,15 @@ def fetch_chevon():
             continue
 
         title_content = chunk_str.replace(date_match.group(0), "").strip()
-        title_content = re.split(r"\d{4}\s*\.\s*\d{1,2}", title_content).strip()
-        title_content = re.split(r"\d{4}[/\.]", title_content).strip()
+        
+        # 【修正箇所】re.splitのバグを修正。リストではなく文字列として正しく処理します
+        title_parts = re.split(r"\d{4}\s*\.\s*\d{1,2}", title_content)
+        title_content = title_parts[0].strip() if title_parts else title_content
+        
+        title_parts_2 = re.split(r"\d{4}[/\.]", title_content)
+        title_content = title_parts_2[0].strip() if title_parts_2 else title_content
+        
+        # 連続するスペースを1つに統合
         title_content = re.sub(r"\s+", " ", title_content)
         
         if len(title_content) < 5 or "©" in title_content or "BIOGRAPHY" in title_content:
