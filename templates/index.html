@@ -6,7 +6,6 @@
     <title>スケジュール通知アプリ</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
-        /* 簡単なタブの見た目調整（お好みでstyle.cssに移動してください） */
         .tab-container { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
         .tab-btn { padding: 10px 20px; font-size: 16px; cursor: pointer; border: 1px solid #ccc; background: #f0f0f0; border-radius: 5px; }
         .tab-btn.active { background: #333; color: #fff; border-color: #333; font-weight: bold; }
@@ -18,19 +17,36 @@
         .event-link { display: inline-block; margin-top: 5px; color: #0066cc; text-decoration: none; }
         .notify-section { margin-top: 30px; padding: 20px; background: #f9f9f9; border-radius: 8px; text-align: center; }
         .btn-notify { padding: 12px 24px; font-size: 16px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        
+        /* 💡 公式サイトを埋め込む枠（iframe）のスタイル設定 */
+        .site-embed {
+            width: 100%;
+            height: 600px; /* 縦幅（スクロールして見られる高さ） */
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin-top: 20px;
+            background: #fff;
+        }
+        .embed-title {
+            margin-top: 40px;
+            font-size: 20px;
+            border-left: 5px solid #333;
+            padding-left: 10px;
+            color: #333;
+        }
     </style>
 </head>
 <body>
     <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
         <h1>アーティスト スケジュール一覧</h1>
 
-        <!-- タブボタン部分 -->
+        <!-- タブボタン -->
         <div class="tab-container">
             <button class="tab-btn active" onclick="switchTab('frederic')">フレデリック</button>
             <button class="tab-btn" onclick="switchTab('chevon')">Chevon</button>
         </div>
 
-        <!-- フレデリックのコンテンツ -->
+        <!-- ================= フレデリックのタブ ================= -->
         <div id="frederic-tab" class="tab-content active">
             {% if frederic_schedule %}
                 {% for ev in frederic_schedule %}
@@ -43,9 +59,13 @@
             {% else %}
                 <p>フレデリックの予定はありません。</p>
             {% endif %}
+
+            <!-- 💡 フレデリック公式サイトの埋め込み -->
+            <h3 class="embed-title">公式ライブ専用ページ</h3>
+            <iframe class="site-embed" src="https://frederic-official.com"></iframe>
         </div>
 
-        <!-- Chevonのコンテンツ -->
+        <!-- ================= Chevonのタブ ================= -->
         <div id="chevon-tab" class="tab-content">
             {% if chevon_schedule %}
                 {% for ev in chevon_schedule %}
@@ -58,9 +78,13 @@
             {% else %}
                 <p>Chevonの予定はありません。</p>
             {% endif %}
+
+            <!-- 💡 Chevon公式サイトの埋め込み -->
+            <h3 class="embed-title">公式サイト（LIVE）</h3>
+            <iframe class="site-embed" src="https://chevon.biz"></iframe>
         </div>
 
-        <!-- 手動通知ボタン（動作確認用） -->
+        <!-- 手動通知ボタン（18:00チェックのテスト用） -->
         <div class="notify-section">
             <h3>LINE通知のテスト</h3>
             <form action="/notify" method="POST">
@@ -72,11 +96,9 @@
     <!-- タブ切り替え用のJavaScript -->
     <script>
         function switchTab(artist) {
-            // すべてのタブコンテンツとボタンを非アクティブにする
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
 
-            // クリックされたアーティストのタブとボタンをアクティブにする
             document.getElementById(artist + '-tab').classList.add('active');
             event.currentTarget.classList.add('active');
         }
