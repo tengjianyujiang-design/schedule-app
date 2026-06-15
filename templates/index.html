@@ -19,19 +19,46 @@
         .event-link { display: inline-block; margin-top: 5px; color: #0066cc; text-decoration: none; }
         
         /* 通知エリアと3つのボタンのデザイン */
-        .notify-section { margin-top: 40px; padding: 25px; background: #f9f9f9; border-radius: 8px; text-align: center; border: 1px solid #eee; }
-        .btn-group { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 15px; }
-        .btn-notify { padding: 12px 20px; font-size: 15px; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; min-width: 160px; }
-        
-        /* ボタンごとの色分け */
-        .btn-frederic { background-color: #007bff; } /* 青 */
-        .btn-chevon { background-color: #dc3545; }    /* 赤 */
-        .btn-all { background-color: #28a745; }       /* 緑 */
-        
-        .embed-title { margin-top: 40px; font-size: 18px; border-left: 5px solid #333; padding-left: 10px; color: #333; }
-        .embed-wrapper { width: 66.6vw; max-width: 533px; aspect-ratio: 16 / 10; margin: 20px auto; border: 1px solid #ccc; border-radius: 8px; overflow: hidden; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .site-embed { width: 100%; height: 100%; border: none; display: block; }
-    </style>
+       <!-- templates/index.html の <style> タグ内を修正 -->
+<style>
+    /* （中略） */
+
+    /* 基本のボタン設定（枠線の初期化などを少し調整） */
+    .btn-notify { 
+        padding: 12px 20px; 
+        font-size: 15px; 
+        border: none; 
+        border-radius: 5px; 
+        cursor: pointer; 
+        font-weight: bold; 
+        min-width: 160px; 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* 少し立体感を出します */
+        transition: opacity 0.2s;
+    }
+    .btn-notify:hover {
+        opacity: 0.9; /* マウスを乗せたときに少し優しく光る演出 */
+    }
+    
+    /* 💡 ボタンごとの新しい色設定 */
+    .btn-frederic { 
+        background-color: #52D66B; 
+        color: white; 
+    }
+    
+    .btn-chevon { 
+        background-color: #8C0D0D; 
+        color: white; 
+    }
+    
+    .btn-all { 
+        background-color: #FFFFFF; 
+        color: #333333;           /* 文字を読みやすい黒にします */
+        border: 1px solid #cccccc; /* 白ベースなので綺麗な枠線をつけます */
+    }
+    
+    /* （以下略） */
+</style>
+
 </head>
 <body>
     <div class="main-container">
