@@ -3,7 +3,7 @@ import os
 import json
 import urllib.request
 import urllib.error
-from fastapi import FastAPI, Request, Form  # 💡【修正】Formを新しくインポートします
+from fastapi import FastAPI, Request, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -37,7 +37,7 @@ def index(request: Request):
 
 @app.post("/notify")
 @app.post("/notify/")
-def notify(target: str = Form("all")):  # 💡【重要】FastAPI標準の Form() を使うことで、どのボタンが押されたか100%確実に判別します
+def notify(target: str = Form("all")):
     """
     毎日18:00に自動実行、または画面から手動実行される通知エンドポイント。
     """
@@ -47,7 +47,7 @@ def notify(target: str = Form("all")):  # 💡【重要】FastAPI標準の Form(
         print("サイトからスケジュールを取得できませんでした（または0件）")
         return {"status": "ok", "message": "スケジュールなし"}
 
-    # 💡【重要】ボタンの選択（target）に応じて、チェック対象のアーティストを厳密に絞り込みます
+    # ボタンの選択（target）に応じて、チェック対象のアーティストを厳密に絞り込み
     if target == "frederic":
         events = [ev for ev in all_events if ev["artist"] == "フレデリック"]
         title_tag = "【🔥フレデリック 新着情報！】\n\n"
@@ -101,11 +101,9 @@ def notify(target: str = Form("all")):  # 💡【重要】FastAPI標準の Form(
     # 5. LINEに送信
     send_line_message(text)
 
-    # 6. 送信が成功したURLを Supabase に保存（次回から重複通知しないようにする）
+    # 6. 送信が成功したURLを Supabase に保存（次回から重複通知しない。409エラー自動回避対応）
     rows = [{"url": ev["url"]} for ev in new_events]
-   # 末尾に ?on_conflict=url を付けることで、重複した時はエラーにせず「上書き（無視）」してくれます
-post_url = f"{supabase_url}/rest/v1/notified_events?on_conflict=url"
-
+    post_url = f"{supabase_url}/rest/v1/notified_events?on_conflict=url"
     
     post_req = urllib.request.Request(
         post_url,
