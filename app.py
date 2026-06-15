@@ -12,17 +12,21 @@ from send_line import send_line_message
 
 app = FastAPI()
 
-# URLの末尾のスラッシュの有無を自動で合わせてくれる設定
+# 💡【最重要】URLの自動補正と、staticフォルダの公開マウントを一番最初に固定します
 app.router.redirect_slashes = True 
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    """トップページを表示し、アーティストごとのリストを個別にHTMLへ渡します。"""
+    """
+    トップページを表示します。
+    アーティストごとのリストを個別にHTML（Jinja2）へ渡します。
+    """
     all_events = fetch_schedule_list()
     
+    # アーティストごとに予定を仕分ける（現在に近い順に並びます）
     frederic_events = [ev for ev in all_events if ev["artist"] == "フレデリック"]
     chevon_events = [ev for ev in all_events if ev["artist"] == "Chevon"]
     
@@ -101,7 +105,7 @@ def notify(target: str = Form("all")):
     # 5. LINEに送信
     send_line_message(text)
 
-    # 6. 送信が成功したURLを Supabase に保存（次回から重複通知しない。409エラー自動回避対応）
+    # 6. 送信が成功したURLを Supabase に保存（重複自動回避対応）
     rows = [{"url": ev["url"]} for ev in new_events]
     post_url = f"{supabase_url}/rest/v1/notified_events?on_conflict=url"
     
@@ -118,7 +122,7 @@ def notify(target: str = Form("all")):
     
     try:
         with urllib.request.urlopen(post_req) as response:
-            print(f"新着 {len(new_events)} 件のURLをデータベースに記録しました。")
+            print(f"新着 {len(new_events)} 件 of URLをデータベースに記録しました。")
     except Exception as e:
         print("データベースへの書き込みに失敗しました:", e)
 
@@ -126,7 +130,7 @@ def notify(target: str = Form("all")):
 
 
 def fetch_schedule_list():
-    """スケジュールを『リスト（生のデータ）』の形で取得し、現在に近い順（昇順）に並び替える関数"""
+    """スケジュールをリストの形で取得し、現在に近い順（昇順）に並び替える関数"""
     from fetch_frederic import fetch_frederic
     from fetch_chevon import fetch_chevon
     
@@ -141,8 +145,5 @@ def fetch_schedule_list():
     except Exception as e:
         print("Chevonの取得に失敗:", e)
     
-    # 日付が古い順（＝現在に近い順）に並び替えます
     events.sort(key=lambda x: (x["date"] is None, x["date"]), reverse=False)
-    
     return events
-
