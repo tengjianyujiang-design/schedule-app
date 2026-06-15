@@ -3,7 +3,7 @@ import os
 import json
 import urllib.request
 import urllib.error
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Form  # 💡【修正】Formを新しくインポートします
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -12,7 +12,7 @@ from send_line import send_line_message
 
 app = FastAPI()
 
-# URLの末尾のスラッシュの有無を自動で合わせてくれる設定（エラー防止）
+# URLの末尾のスラッシュの有無を自動で合わせてくれる設定
 app.router.redirect_slashes = True 
 
 templates = Jinja2Templates(directory="templates")
@@ -20,13 +20,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    """
-    トップページを表示します。
-    アーティストごとのリストを個別にHTML（Jinja2）へ渡します。
-    """
+    """トップページを表示し、アーティストごとのリストを個別にHTMLへ渡します。"""
     all_events = fetch_schedule_list()
     
-    # アーティストごとに予定を仕分ける（現在に近い順に並びます）
     frederic_events = [ev for ev in all_events if ev["artist"] == "フレデリック"]
     chevon_events = [ev for ev in all_events if ev["artist"] == "Chevon"]
     
@@ -41,26 +37,17 @@ def index(request: Request):
 
 @app.post("/notify")
 @app.post("/notify/")
-def notify(request: Request):  # 💡【重要】async を外して通常の def に戻し、urllibとの衝突を防ぎます
+def notify(target: str = Form("all")):  # 💡【重要】FastAPI標準の Form() を使うことで、どのボタンが押されたか100%確実に判別します
     """
-    毎日18:00に自動実行される通知エンドポイント。
-    新着のスケジュールがある場合のみ、現在に近い順にLINEへ通知します。
+    毎日18:00に自動実行、または画面から手動実行される通知エンドポイント。
     """
-    # 💡【重要】asyncなし(def)の状態で安全にフォームデータを取得する標準の書き方に修正
-    import asyncio
-    try:
-        form_data = asyncio.run(request.form())
-        target = form_data.get("target", "all")
-    except:
-        target = "all"
-
     # 1. 最新のスケジュールをリスト形式で取得
     all_events = fetch_schedule_list() 
     if not all_events:
         print("サイトからスケジュールを取得できませんでした（または0件）")
         return {"status": "ok", "message": "スケジュールなし"}
 
-    # ボタンの選択に応じて、チェック対象のアーティストを絞り込む
+    # 💡【重要】ボタンの選択（target）に応じて、チェック対象のアーティストを厳密に絞り込みます
     if target == "frederic":
         events = [ev for ev in all_events if ev["artist"] == "フレデリック"]
         title_tag = "【🔥フレデリック 新着情報！】\n\n"
@@ -158,3 +145,4 @@ def fetch_schedule_list():
     events.sort(key=lambda x: (x["date"] is None, x["date"]), reverse=False)
     
     return events
+
