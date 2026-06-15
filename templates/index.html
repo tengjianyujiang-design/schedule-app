@@ -6,8 +6,12 @@
     <title>スケジュール通知アプリ</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
+        /* 画面全体の基本設定 */
         body { margin: 0; padding: 0; font-family: sans-serif; background: #f8f9fa; }
+        
+        /* コンテンツエリアの幅制限 */
         .main-container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        
         .tab-container { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
         .tab-btn { padding: 10px 20px; font-size: 16px; cursor: pointer; border: 1px solid #ccc; background: #f0f0f0; border-radius: 5px; }
         .tab-btn.active { background: #333; color: #fff; border-color: #333; font-weight: bold; }
@@ -19,48 +23,62 @@
         .event-link { display: inline-block; margin-top: 5px; color: #0066cc; text-decoration: none; }
         
         /* 通知エリアと3つのボタンのデザイン */
-       <!-- templates/index.html の <style> タグ内を修正 -->
-<style>
-    /* （中略） */
+        .notify-section { margin-top: 40px; padding: 25px; background: #f9f9f9; border-radius: 8px; text-align: center; border: 1px solid #eee; }
+        .btn-group { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 15px; }
+        .btn-notify { 
+            padding: 12px 20px; 
+            font-size: 15px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            min-width: 160px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+            transition: opacity 0.2s;
+        }
+        .btn-notify:hover { opacity: 0.8; }
+        
+        /* ボタンごとの色設定 */
+        .btn-frederic { background-color: #52D66B; color: white; }
+        .btn-chevon { background-color: #8C0D0D; color: white; }
+        .btn-all { background-color: #FFFFFF; color: #333333; border: 1px solid #cccccc; }
+        
+        .embed-title { margin-top: 40px; font-size: 18px; border-left: 5px solid #333; padding-left: 10px; color: #333; }
+        .embed-wrapper { width: 66.6vw; max-width: 533px; aspect-ratio: 16 / 10; margin: 20px auto; border: 1px solid #ccc; border-radius: 8px; overflow: hidden; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .site-embed { width: 100%; height: 100%; border: none; display: block; }
 
-    /* 基本のボタン設定（枠線の初期化などを少し調整） */
-    .btn-notify { 
-        padding: 12px 20px; 
-        font-size: 15px; 
-        border: none; 
-        border-radius: 5px; 
-        cursor: pointer; 
-        font-weight: bold; 
-        min-width: 160px; 
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* 少し立体感を出します */
-        transition: opacity 0.2s;
-    }
-    .btn-notify:hover {
-        opacity: 0.9; /* マウスを乗せたときに少し優しく光る演出 */
-    }
-    
-    /* 💡 ボタンごとの新しい色設定 */
-    .btn-frederic { 
-        background-color: #52D66B; 
-        color: white; 
-    }
-    
-    .btn-chevon { 
-        background-color: #8C0D0D; 
-        color: white; 
-    }
-    
-    .btn-all { 
-        background-color: #FFFFFF; 
-        color: #333333;           /* 文字を読みやすい黒にします */
-        border: 1px solid #cccccc; /* 白ベースなので綺麗な枠線をつけます */
-    }
-    
-    /* （以下略） */
-</style>
-
+        /* 💡 新着通知ポップアップ（トースト）のスタイル */
+        .toast-notification {
+            position: fixed;
+            top: -100px; /* 初期状態は画面の上に隠しておく */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333333;
+            color: #ffffff;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* ふわっと跳ねるアニメーション */
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        /* ポップアップが表示された時のクラス */
+        .toast-notification.show { top: 25px; }
+        .toast-success { border-left: 4px solid #52D66B; }
+        .toast-loading { border-left: 4px solid #007bff; }
+    </style>
 </head>
 <body>
+
+    <!-- 💡 画面上部に出現するおしゃれなポップアップ通知枠 -->
+    <div id="toast" class="toast-notification">
+        <span id="toast-icon">⏳</span> <span id="toast-message">処理中...</span>
+    </div>
+
     <div class="main-container">
         <h1>アーティスト スケジュール一覧</h1>
 
@@ -84,7 +102,7 @@
                 <p>フレデリックの予定はありません。</p>
             {% endif %}
 
-            <h3 class="embed-title">公式サイトプレビュー</h3>
+            <h3 class="embed-title">公式ライブ専用ページ</h3>
             <div class="embed-wrapper">
                 <iframe class="site-embed" src="https://frederic-official.com"></iframe>
             </div>
@@ -104,45 +122,87 @@
                 <p>Chevonの予定はありません。</p>
             {% endif %}
 
-            <h3 class="embed-title">公式サイトプレビュー</h3>
+            <h3 class="embed-title">公式サイト（LIVE）</h3>
             <div class="embed-wrapper">
                 <iframe class="site-embed" src="https://chevon.biz"></iframe>
             </div>
         </div>
 
-        <!-- 💡 3つに独立・合流させた通知テストセクション -->
+        <!-- 3つの通知テストセクション -->
         <div class="notify-section">
-            <h3>LINE通知を手動で送る</h3>
+            <h3>LINE通知の手動テスト</h3>
             <p style="font-size: 14px; color: #666; margin-bottom: 15px;">ボタンを押すと、それぞれの新着情報を個別にチェックしてLINEに通知します。</p>
             
             <div class="btn-group">
-                <!-- フレデリック専用ボタン -->
-                <form action="/notify" method="POST">
-                    <input type="hidden" name="target" value="frederic">
-                    <button type="submit" class="btn-notify btn-frederic">フレデリックのみ通知</button>
-                </form>
+                <!-- フレデリック専用（JavaScriptで送信するように変更） -->
+                <button type="button" class="btn-notify btn-frederic" onclick="sendNotification('frederic')">フレデリックのみ通知</button>
 
-                <!-- Chevon専用ボタン -->
-                <form action="/notify" method="POST">
-                    <input type="hidden" name="target" value="chevon">
-                    <button type="submit" class="btn-notify btn-chevon">Chevonのみ通知</button>
-                </form>
+                <!-- Chevon専用（JavaScriptで送信するように変更） -->
+                <button type="button" class="btn-notify btn-chevon" onclick="sendNotification('chevon')">Chevonのみ通知</button>
 
-                <!-- 一緒に送信（合流）ボタン -->
-                <form action="/notify" method="POST">
-                    <input type="hidden" name="target" value="all">
-                    <button type="submit" class="btn-notify btn-all">2組まとめて通知</button>
-                </form>
+                <!-- 一緒に送信（JavaScriptで送信するように変更） -->
+                <button type="button" class="btn-notify btn-all" onclick="sendNotification('all')">2組まとめて通知</button>
             </div>
         </div>
     </div>
 
     <script>
+        // タブ切り替え用のJavaScript
         function switchTab(artist) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(artist + '-tab').classList.add('active');
             event.currentTarget.classList.add('active');
+        }
+
+        // 💡 画面を切り替えずに裏側で通知を送り、ポップアップを出す魔法のJavaScript
+        function sendNotification(targetArtist) {
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toast-icon');
+            const toastMsg = document.getElementById('toast-message');
+
+            // 1. まずは「通信中...」のポップアップを出す
+            toast.className = "toast-notification show toast-loading";
+            toastIcon.innerText = "⏳";
+            toastMsg.innerText = "新着スケジュールをチェック中...";
+
+            // データの準備
+            const formData = new FormData();
+            formData.append('target', targetArtist);
+
+            // 2. ページ移動せず、裏側で FastAPI（/notify）にデータを送信する
+            fetch('/notify', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 3. 通信が成功したら、メッセージ内容を書き換える
+                toast.className = "toast-notification show toast-success";
+                toastIcon.innerText = "🎉";
+                
+                if (data.message === "通知を送信しました") {
+                    toastMsg.innerText = "LINEへ新着通知を送信しました！";
+                } else if (data.message === "新着なし") {
+                    toastMsg.innerText = "新着スケジュールはありませんでした。";
+                } else {
+                    toastMsg.innerText = data.message;
+                }
+
+                // 4. 4秒後に自動的にふわっと上に隠す
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 4000);
+            })
+            .catch(error => {
+                // エラーが起きた場合の表示
+                toast.className = "toast-notification show";
+                toastIcon.innerText = "❌";
+                toastMsg.innerText = "通信エラーが発生しました。";
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 4000);
+            });
         }
     </script>
 </body>
