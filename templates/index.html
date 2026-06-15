@@ -32,24 +32,26 @@
             color: #333;
         }
 
-        /* 💡 埋め込み全体の幅を画面全体の「約1%（1/100）」に変更して極限まで狭くします */
-        .embed-wrapper {
-            width: 1vw;            /* 画面横幅の 1/100 (1%) */
-            min-width: 15px;       /* 潰れすぎないように最低限の幅を確保 */
-            margin: 15px auto;     /* 画面の中央に配置 */
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            overflow: hidden;
-            background: #fff;
-        }
+      /* 💡 埋め込み全体の幅を画面の2/3にし、比率を縦10：横16に固定します */
+    .embed-wrapper {
+        width: 66.6vw;          /* 画面横幅の 2/3 (約66.6%) */
+        max-width: 533px;       /* 親コンテナ(800px)の2/3を超えないように制限 */
+        aspect-ratio: 16 / 10;  /* 💡【超重要】横16に対して縦10の比率を完全に固定 */
+        margin: 20px auto;      /* 上下に余白を作り、左右中央寄せ */
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05); /* 少し立体感を出して綺麗に見せます */
+    }
 
-        .site-embed {
-            width: 100%;
-            height: 400px;         /* 縦幅もコンパクトに調整 */
-            border: none;
-            display: block;
-        }
-    </style>
+    .site-embed {
+        width: 100%;
+        height: 100%;           /* wrapperの縦横比(16:10)にぴったり合わせます */
+        border: none;
+        display: block;
+    }
+</style>
 </head>
 <body>
     <!-- 全体を包むメインコンテナ -->
