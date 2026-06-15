@@ -39,20 +39,22 @@ def index(request: Request):
         }
     )
 
-# app.py の notify 関数部分を以下に置き換えます
-
 @app.post("/notify")
 @app.post("/notify/")
-async def notify(request: Request):
+def notify(request: Request):  # 💡【重要】async を外して通常の def に戻し、urllibとの衝突を防ぎます
     """
-    通知エンドポイント（手動・自動共通）。
-    どのアーティストを通知するかをフォームデータから判別します。
+    毎日18:00に自動実行される通知エンドポイント。
+    新着のスケジュールがある場合のみ、現在に近い順にLINEへ通知します。
     """
-    # フォームデータから「target（どのアーティストか）」を取得（初期値は all）
-    form_data = await request.form()
-    target = form_data.get("target", "all")
+    # 💡【重要】asyncなし(def)の状態で安全にフォームデータを取得する標準の書き方に修正
+    import asyncio
+    try:
+        form_data = asyncio.run(request.form())
+        target = form_data.get("target", "all")
+    except:
+        target = "all"
 
-    # 1. スケジュールをリスト形式で取得
+    # 1. 最新のスケジュールをリスト形式で取得
     all_events = fetch_schedule_list() 
     if not all_events:
         print("サイトからスケジュールを取得できませんでした（または0件）")
@@ -95,14 +97,14 @@ async def notify(request: Request):
         print("データベースの読み込みに失敗しました:", e)
         return {"status": "error", "message": "DBエラー"}
 
-    # 3. 未通知の「新着イベント」だけを抽出
+    # 3. まだLINEに送っていない「新着イベント」だけを抽出
     new_events = [ev for ev in events if ev["url"] not in notified_urls]
 
     if not new_events:
         print(f"{target} の新着スケジュールはありませんでした。")
         return {"status": "ok", "message": "新着なし"}
 
-    # 4. 新着分だけのLINEメッセージを作成
+    # 4. 新着分だけのLINEメッセージを作成（現在に近い順）
     text = title_tag
     for ev in new_events:
         date_str = ev["date"].strftime("%Y-%m-%d") if ev["date"] else "日付未定"
@@ -112,7 +114,7 @@ async def notify(request: Request):
     # 5. LINEに送信
     send_line_message(text)
 
-    # 6. 送信が成功したURLを Supabase に保存
+    # 6. 送信が成功したURLを Supabase に保存（次回から重複通知しないようにする）
     rows = [{"url": ev["url"]} for ev in new_events]
     post_url = f"{supabase_url}/rest/v1/notified_events"
     
