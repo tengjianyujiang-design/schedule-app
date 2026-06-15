@@ -114,7 +114,7 @@
                 <p>フレデリックの予定はありません。</p>
             {% endif %}
 
-            <h3 class="embed-title">公式ライブ専用ページ</h3>
+            <h3 class="embed-title">公式サイトプレビュー</h3>
             <div class="embed-wrapper">
                 <iframe class="site-embed" src="https://frederic-official.com"></iframe>
             </div>
@@ -134,7 +134,7 @@
                 <p>Chevonの予定はありません。</p>
             {% endif %}
 
-            <h3 class="embed-title">公式サイト（LIVE）</h3>
+            <h3 class="embed-title">公式サイトプレビュー</h3>
             <div class="embed-wrapper">
                 <iframe class="site-embed" src="https://chevon.biz"></iframe>
             </div>
@@ -170,11 +170,11 @@
 
             // 💡 1. 押されたボタンに応じて、表示する画像URLをセットする
             if (targetArtist === 'frederic') {
-                toastImg.src = '/static/frederic.png'; // 拡張子がjpgなら変更してください
+                toastImg.src = '/static/frederic.jpg'; // 拡張子がjpgなら変更してください
                 toastImg.style.display = 'block';
                 toastIcon.style.display = 'none';      // 画像がある時は絵文字を隠す
             } else if (targetArtist === 'chevon') {
-                toastImg.src = '/static/chevon.png';   // 拡張子がjpgなら変更してください
+                toastImg.src = '/static/chevon.jpg';   // 拡張子がjpgなら変更してください
                 toastImg.style.display = 'block';
                 toastIcon.style.display = 'none';      // 画像がある時は絵文字を隠す
             } else {
