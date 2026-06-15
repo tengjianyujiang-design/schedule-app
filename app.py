@@ -103,7 +103,9 @@ def notify(target: str = Form("all")):  # 💡【重要】FastAPI標準の Form(
 
     # 6. 送信が成功したURLを Supabase に保存（次回から重複通知しないようにする）
     rows = [{"url": ev["url"]} for ev in new_events]
-    post_url = f"{supabase_url}/rest/v1/notified_events"
+   # 末尾に ?on_conflict=url を付けることで、重複した時はエラーにせず「上書き（無視）」してくれます
+post_url = f"{supabase_url}/rest/v1/notified_events?on_conflict=url"
+
     
     post_req = urllib.request.Request(
         post_url,
